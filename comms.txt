@@ -1,0 +1,16 @@
+"""option(BUILD_TESTS "Build tests" ON)
+
+if (BUILD_TESTS)
+    enable_testing()
+    find_package(GTest REQUIRED)
+    include_directories(${GTEST_INCLUDE_DIRS})
+
+    set(TEST_SOURCES
+        test/test_packet_manager.cpp
+    )
+
+    add_executable(runTests ${TEST_SOURCES})
+    target_link_libraries(runTests ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES} pthread ${PCAP_LIBRARIES})
+    add_test(NAME runTests COMMAND runTests)
+endif()
+"""
