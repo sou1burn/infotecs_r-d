@@ -23,7 +23,15 @@ struct Packet
 extern std::queue<Packet> q1, q2, q3;
 extern std::mutex m1, m2, m3;
 extern std::condition_variable cv1, cv2, cv3;
-void process_packets(const char* output_filename, std::queue<Packet>& packet_queue, std::mutex& locker, std::condition_variable& cv);
+
+void process_packets_for_handler1(const char* output_filename, std::queue<Packet>& packet_queue,
+ std::mutex& locker, std::condition_variable& cv);
+
+void process_packets_for_handler2(const char* output_filename, std::queue<Packet>& packet_queue,
+ std::mutex& locker, std::condition_variable& cv);
+
+void process_packets_for_handler3(const char* output_filename, std::queue<Packet>& packet_queue,
+ std::mutex& locker, std::condition_variable& cv);
 
 void packet_manager(const char* input_filename);
 

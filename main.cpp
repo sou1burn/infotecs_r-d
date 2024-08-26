@@ -26,9 +26,9 @@ int main(int argc, char* argv[])
 
     pcap_freealldevs(alldevs);
 
-    std::thread handler1 (process_packets, "result_1.pcap", std::ref(q1), std::ref(m1), std::ref(cv1));
-    std::thread handler2 (process_packets, "result_2.pcap", std::ref(q2), std::ref(m2), std::ref(cv2));
-    std::thread handler3 (process_packets, "result_3.pcap", std::ref(q3), std::ref(m3), std::ref(cv3));
+    std::thread handler1 (process_packets_for_handler1, "result_1.pcap", std::ref(q1), std::ref(m1), std::ref(cv1));
+    std::thread handler2 (process_packets_for_handler2, "result_2.pcap", std::ref(q2), std::ref(m2), std::ref(cv2));
+    std::thread handler3 (process_packets_for_handler3, "result_3.pcap", std::ref(q3), std::ref(m3), std::ref(cv3));
     
     packet_manager(argv[1]);
 
@@ -37,5 +37,4 @@ int main(int argc, char* argv[])
     handler3.join();
 
     return 0;
-
 }
