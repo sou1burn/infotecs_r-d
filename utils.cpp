@@ -18,6 +18,9 @@ void process_packets_for_handler1(const char* output_filename, std::queue<Packet
 
     while (true)
     {
+        std::cout << "\nPacket in process in q1...\n";
+        std::cout << "Packet added to queue in thread " << std::this_thread::get_id() << "\n";
+
         std::unique_lock<std::mutex> lock(locker);
         cv.wait(lock,[&packet_queue]()
         {
@@ -61,6 +64,9 @@ void process_packets_for_handler2(const char* output_filename, std::queue<Packet
 
     while (true)
     {
+        std::cout << "\nPacket in process in q2...\n";
+        std::cout << "Packet added to queue in thread " << std::this_thread::get_id() << "\n";
+
         std::unique_lock<std::mutex> lock(locker);
         cv.wait(lock,[&packet_queue]()
         {
@@ -105,6 +111,9 @@ void process_packets_for_handler3(const char* output_filename, std::queue<Packet
 
     while (true)
     {
+        std::cout << "\nPacket in process in q3...\n";
+        std::cout << "Packet added to queue in thread " << std::this_thread::get_id() << "\n";
+
         std::unique_lock<std::mutex> lock(locker);
         cv.wait(lock,[&packet_queue]()
         {
@@ -157,6 +166,7 @@ void packet_manager(const char* input_filename)
 {
     pcap_t* handle;
     char errbuf[PCAP_ERRBUF_SIZE];
+    int score = 0;
 
     handle = pcap_open_offline(input_filename, errbuf);
 
@@ -170,6 +180,8 @@ void packet_manager(const char* input_filename)
 
     while (pcap_next_ex(handle, &header, &data) >= 0)
     {
+        score++;
+        std::cout << "\nPacket in process...\n";
         Packet packet;
 
         packet.header = *header;
@@ -191,21 +203,21 @@ void packet_manager(const char* input_filename)
                     std::unique_lock<std::mutex> lock(m1);
                     q1.push(packet);
                     lock.unlock();
-                    cv1.notify_all();
+                    cv1.notify_one();
                 }
                 else if (dst_ip >= 0x0C000003 && dst_ip <= 0x0C0000C8 && dst_port == 8080)
                 {
                     std::unique_lock<std::mutex> lock(m2);
                     q2.push(packet);
                     lock.unlock();
-                    cv2.notify_all();
+                    cv2.notify_one();
                 } 
                 else
                 {
                     std::unique_lock<std::mutex> lock(m3);
                     q3.push(packet);
                     lock.unlock();
-                    cv3.notify_all();
+                    cv3.notify_one();
                 }
 
             }
@@ -237,6 +249,7 @@ void packet_manager(const char* input_filename)
                 }
             }
         }
+        std::cout <<"\n Processing end...\n";
         
     }
 
@@ -245,5 +258,8 @@ void packet_manager(const char* input_filename)
     cv2.notify_all();
     cv3.notify_all();
 
+    std::cout << score << "\n";
+
     pcap_close(handle);
+
 }
