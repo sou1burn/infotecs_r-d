@@ -2,6 +2,7 @@
 #include <time.h>
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 
 std::queue<Packet> q1, q2, q3;
 std::mutex m1, m2, m3;
@@ -18,8 +19,8 @@ void process_packets_for_handler1(const char* output_filename, std::queue<Packet
 
     while (true)
     {
-        std::cout << "\nPacket in process in q1...\n";
-        std::cout << "Packet added to queue in thread " << std::this_thread::get_id() << "\n";
+
+        std::cout << "Packet added to queue1 in thread " << std::this_thread::get_id() << "\n";
 
         std::unique_lock<std::mutex> lock(locker);
         cv.wait(lock,[&packet_queue]()
@@ -64,8 +65,7 @@ void process_packets_for_handler2(const char* output_filename, std::queue<Packet
 
     while (true)
     {
-        std::cout << "\nPacket in process in q2...\n";
-        std::cout << "Packet added to queue in thread " << std::this_thread::get_id() << "\n";
+        std::cout << "Packet added to queue2 in thread " << std::this_thread::get_id() << "\n";
 
         std::unique_lock<std::mutex> lock(locker);
         cv.wait(lock,[&packet_queue]()
@@ -111,8 +111,7 @@ void process_packets_for_handler3(const char* output_filename, std::queue<Packet
 
     while (true)
     {
-        std::cout << "\nPacket in process in q3...\n";
-        std::cout << "Packet added to queue in thread " << std::this_thread::get_id() << "\n";
+        std::cout << "Packet added to queue3 in thread " << std::this_thread::get_id() << "\n";
 
         std::unique_lock<std::mutex> lock(locker);
         cv.wait(lock,[&packet_queue]()
@@ -187,79 +186,110 @@ void packet_manager(const char* input_filename)
         packet.header = *header;
         packet.data.assign(data, data + header->caplen);
         struct ether_header *eth_header = (struct ether_header *)data;
-        
-        if (ntohs(eth_header->ether_type) == ETHERTYPE_IP)
+
+        //if (ntohs(eth_header->ether_type) == IPPROTO_ETHERNET)
+        // {
+        struct ip *ip_header = (struct ip*) (data + sizeof(struct ether_header));
+        uint32_t dst_ip = ntohl(ip_header->ip_dst.s_addr);
+
+        std::cout << "Packet captured at: " << ctime((const time_t*)&header->ts.tv_sec);
+        std::cout << "Packet length: " << header->len << " bytes\n";
+        std::cout << "Destination IP: " << ((dst_ip >> 24) & 0xFF) << "."
+                    << ((dst_ip >> 16) & 0xFF) << "."
+                    << ((dst_ip >> 8) & 0xFF) << "."
+                    << (dst_ip & 0xFF) << "\n";
+        std::cout << "\nDestination IP: " << dst_ip << ", Destination Port: " << "dst_port" << std::endl;            
+        if (ip_header->ip_p == IPPROTO_TCP)
         {
-            struct ip *ip_header = (struct ip*) (data + sizeof(struct ether_header));
-            uint32_t dst_ip = ntohl(ip_header->ip_dst.s_addr);
-
-            if (ip_header->ip_p == IPPROTO_TCP)
-            {
-                struct tcphdr * tcp_header = (struct tcphdr*) (data + sizeof(struct ether_header) + ip_header->ip_hl * 4);
-                uint16_t dst_port = ntohs(tcp_header->th_dport);
-
-                if (dst_ip >= 0x0B000003 && dst_ip <= 0x0B0000C8)
+            std::cout << "\n im in cycle, proto is tcp\n";
+            struct tcphdr * tcp_header = (struct tcphdr*) (data + sizeof(struct ether_header) + ip_header->ip_hl * 4);
+            uint16_t dst_port = ntohs(tcp_header->th_dport);
+            
+            if (dst_ip >= ntohl(0x0B000003) && dst_ip <= ntohl(0x0B0000C8))
                 {   
-                    std::unique_lock<std::mutex> lock(m1);
+                    std::lock_guard<std::mutex> lock1(m1);
                     q1.push(packet);
-                    lock.unlock();
-                    cv1.notify_one();
+                    //lock1.unlock();
+                    cv1.notify_all();
                 }
-                else if (dst_ip >= 0x0C000003 && dst_ip <= 0x0C0000C8 && dst_port == 8080)
+            else if (dst_ip >= ntohl(0x0C000003) && dst_ip <= ntohl(0x0C0000C8) && dst_port == 8080)
                 {
-                    std::unique_lock<std::mutex> lock(m2);
+                    std::lock_guard<std::mutex> lock2(m2);
                     q2.push(packet);
-                    lock.unlock();
-                    cv2.notify_one();
+                    //lock2.unlock();
+                    cv2.notify_all();
                 } 
-                else
+            else
                 {
-                    std::unique_lock<std::mutex> lock(m3);
+                    std::lock_guard<std::mutex> lock3(m3);
                     q3.push(packet);
-                    lock.unlock();
-                    cv3.notify_one();
+                    //lock3.unlock();
+                    cv3.notify_all();
                 }
 
             }
-            else if (ip_header->ip_p == IPPROTO_UDP)
+        else if (ip_header->ip_p == IPPROTO_UDP)
             {
-                struct udphdr *udp_header = (struct udphdr*) (data + sizeof(struct ether_header) + ip_header->ip_hl * 4);
-                uint16_t dst_port = ntohs(udp_header->uh_dport);
+            std::cout << "\n im in cycle, proto is udp\n";
+            struct udphdr *udp_header = (struct udphdr*) (data + sizeof(struct ether_header) + ip_header->ip_hl * 4);
+            uint16_t dst_port = ntohs(udp_header->uh_dport);
 
-                if (dst_ip >= 0x0B000003 && dst_ip <= 0x0B0000C8)
+            if (dst_ip >= ntohl(0x0B000003) && dst_ip <= ntohl(0x0B0000C8))
                 {
-                    std::unique_lock<std::mutex> lock(m1);
+                    std::lock_guard<std::mutex> lock1(m1);
                     q1.push(packet);
-                    lock.unlock();
+                    //lock1.unlock();
                     cv1.notify_all();
                 }
-                else if (dst_ip >= 0x0C000003 && dst_ip <= 0x0C0000C8 && dst_port == 8080)
+            else if (dst_ip >= ntohl(0x0C000003) && dst_ip <= ntohl(0x0C0000C8) && dst_port == 8080)
                 {
-                    std::unique_lock<std::mutex> lock(m2);
+                    std::lock_guard<std::mutex> lock2(m2);
                     q2.push(packet);
-                    lock.unlock();
+                    //lock2.unlock();
                     cv2.notify_all();
                 } 
-                else
+            else
                 {
-                    std::unique_lock<std::mutex> lock(m3);
+                    std::lock_guard<std::mutex> lock3(m3);
                     q3.push(packet);
-                    lock.unlock();
+                    //lock3.unlock();
                     cv3.notify_all();
                 }
             }
-        }
+        //}
+        
         std::cout <<"\n Processing end...\n";
         
-    }
+        /*std::unique_lock<std::mutex> lock1(m1);
+        cv1.wait(lock1, [] 
+        {
+            return q1.empty();
+        });
+        lock1.unlock();
 
+        std::unique_lock<std::mutex> lock2(m2);
+        cv1.wait(lock2, [] 
+        {
+            return q2.empty();
+        });
+        lock2.unlock();
+
+        std::unique_lock<std::mutex> lock3(m3);
+        cv1.wait(lock3, [] 
+        {
+            return q3.empty(); 
+        });
+        lock3.unlock();
+        */
+    }
+   
+    pcap_close(handle);
     processing_done = true;
     cv1.notify_all();
     cv2.notify_all();
     cv3.notify_all();
 
-    std::cout << score << "\n";
+    std::cout << "\nTotal packets processed: " << score << "\n";
 
-    pcap_close(handle);
 
 }

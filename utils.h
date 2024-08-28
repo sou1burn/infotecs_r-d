@@ -12,6 +12,7 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <netinet/ether.h>
+#include <arpa/inet.h>
 #include <vector>
 
 struct Packet
